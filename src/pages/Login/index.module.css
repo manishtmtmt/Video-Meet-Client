@@ -1,0 +1,266 @@
+.container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.bgLight {
+  background: url("../../Assets/images/light/bg.png");
+  background-size: 100% 100%;
+  background-position: center center;
+}
+
+.bgDark {
+  background: url("../../Assets/images/dark/bg.png");
+  background-size: 100% 100%;
+  background-position: center center;
+}
+
+.glassBox {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  padding: 8vh;
+  margin: 0 160vw;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  height: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.logo img {
+  width: 6vw;
+  margin-left: 14vw;
+  margin-bottom: 4vh;
+}
+
+.writeUp h4 {
+  color: #000;
+  text-align: right;
+  font-family: "Poppins", sans-serif;
+  font-size: 1.8vw;
+  font-style: normal;
+  font-weight: 500;
+  line-height: normal;
+  text-align: left;
+}
+
+.writeUp p {
+  color: var(--font-2, #7e8bb6);
+  font-family: Poppins;
+  font-size: 1.2vw;
+  font-style: normal;
+  font-weight: 500;
+  line-height: normal;
+  text-wrap: nowrap;
+}
+
+.formContainer {
+  display: flex;
+  flex-direction: row;
+}
+
+.form {
+  margin-top: 2vh;
+  flex: 8;
+}
+
+.input {
+  width: 100%;
+}
+
+.img {
+  flex: 10;
+}
+
+.img img {
+  width: 600px;
+  height: auto;
+}
+
+.input {
+  width: 32vw;
+  padding: 12px 20px;
+  display: inline-block;
+  border: 2px solid rgba(126, 139, 182, 0.5);
+  border-radius: 10px;
+  font-family: "Poppins", sans-serif;
+  box-sizing: border-box;
+  margin: 1vh 0;
+  font-size: 18px;
+}
+
+.checkboxText {
+  color: var(--secondry, #070e27);
+  font-family: Poppins;
+  font-size: 18px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: normal;
+  display: inline-block;
+  opacity: 0.5;
+  margin: 0 10px;
+  margin-top: 1vh;
+}
+
+.loginWithGoogle {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  transition: background-color 0.3s, box-shadow 0.3s;
+  padding: 12px 16px 12px 42px;
+  border-radius: 10px;
+  border: none;
+  box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.04), 0 1px 1px rgba(0, 0, 0, 0.25);
+  color: black;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: "Poppins", sans-serif;
+  cursor: pointer;
+  background-color: #e4e8f4;
+  background-repeat: no-repeat;
+  background-position: 30% 11px;
+}
+
+.buttonContainer {
+  display: flex;
+  flex-direction: column;
+  margin-top: 4vh;
+}
+
+@media screen and (max-width: 1280px) {
+  .img img {
+    width: 48vw;
+  }
+
+  .input {
+    width: 28vw;
+  }
+
+  .checkboxText {
+    font-size: 1.5vw;
+  }
+
+  .checkBoxSpan {
+    display: block;
+  }
+}
+
+@media screen and (max-width: 1100px) {
+  .logo img {
+    width: 8vw;
+    margin-left: 18vw;
+    margin-bottom: 2vh;
+  }
+
+  .writeUp h4 {
+    font-size: 2.2vw;
+  }
+
+  .writeUp p {
+    font-size: 1.6vw;
+    text-wrap: nowrap;
+  }
+
+  .img img {
+    width: 45vw;
+    margin-left: 2vw;
+    margin-top: 4vh;
+  }
+}
+
+@media screen and (max-width: 900px) {
+  .img img {
+    margin-top: 6vh;
+  }
+}
+
+@media screen and (max-width: 800px) {
+  .img {
+    display: none;
+  }
+
+  .logo img {
+    margin-left: 0;
+    width: 10vw;
+  }
+
+  .logo {
+    justify-content: center;
+    display: flex;
+  }
+
+  .writeUp h4 {
+    font-size: 2.6vw;
+  }
+
+  .writeUp p {
+    font-size: 2vw;
+    text-wrap: nowrap;
+  }
+  .input {
+    width: 100%;
+  }
+
+  .checkboxText {
+    font-size: 2vw;
+  }
+
+  .checkBoxSpan {
+    display: block;
+  }
+}
+
+@media screen and (max-width: 550px) {
+  .logo img {
+    width: 12vw;
+  }
+
+  .writeUp h4 {
+    font-size: 3vw;
+  }
+
+  .writeUp p {
+    font-size: 2.4vw;
+    text-wrap: wrap;
+  }
+
+  .checkboxText {
+    font-size: 2.6vw;
+  }
+
+  .checkBoxSpan {
+    display: block;
+  }
+
+  .glassBox {
+    margin: 0 8vw;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .writeUp h4 {
+    font-size: 3.4vw;
+  }
+
+  .writeUp p {
+    font-size: 2.8vw;
+    text-wrap: wrap;
+  }
+
+  .checkboxText {
+    font-size: 3vw;
+  }
+
+  .checkBoxSpan {
+    display: block;
+  }
+
+  .glassBox {
+    margin: 0 4vw;
+    padding: 8vh 8vw;
+  }
+}
