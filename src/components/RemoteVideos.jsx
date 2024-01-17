@@ -2,16 +2,19 @@ import { Box, Typography } from "@mui/material";
 import React from "react";
 
 const CreateRemoteVideos = (props) => {
+  console.log("🚀 ~ CreateRemoteVideos ~ props:", props);
+  console.log("tracks: -->", props.peer.stream.getTracks())
   const remoteVideo = React.useRef();
+  console.log("🚀 ~ CreateRemoteVideos ~ remoteVideo:", remoteVideo);
+
   React.useEffect(() => {
-    // if (remoteVideo.current.srcObject) {
-    //     remoteVideo.current.srcObject.addTrack(props.track);
-    //         return;
-    //     }
     props
       .playVideo(remoteVideo.current, props.peer.stream)
       ?.then(() => {
+        console.log("playVideo called");
         remoteVideo.current.volume = 1;
+        console.log("remoteVideo.current");
+        console.log(remoteVideo.current);
       })
       .catch((err) => {
         console.error("media ERROR:", err);

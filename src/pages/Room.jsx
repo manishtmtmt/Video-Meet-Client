@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Device } from "mediasoup-client";
 import { io as socketIOClient } from "socket.io-client";
 import { config } from "../app.config";
@@ -57,6 +57,10 @@ export const Room = ({ socketRef }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const itemsPerPage = 3;
   const totalPages = Math.ceil(Object.keys(remoteVideos).length / itemsPerPage);
+
+  const consoleLog = (data) => {
+    // console.log(data)
+  };
 
   const nextPage = () => {
     if (currentPage < totalPages - 1) {
@@ -246,8 +250,7 @@ export const Room = ({ socketRef }) => {
       .getUserMedia({ audio: useAudio, video: useVideo })
       .then((stream) => {
         localStream.current = stream;
-        // playVideo(localVideo.current, stream);
-        localVideo.current.srcObject = stream;
+        playVideo(localVideo.current, localStream.current);
         setIsStartMedia(true);
       })
       .catch((err) => {
@@ -624,7 +627,7 @@ export const Room = ({ socketRef }) => {
   }
 
   async function subscribe() {
-    // console.log(socketRef.current);
+    // consoleLog(socketRef.current);
     if (!socketRef.current) {
       await connectSocket().catch((err) => {
         console.error(err);
@@ -801,7 +804,7 @@ export const Room = ({ socketRef }) => {
       }
       audioConsumers.current[id][mode] = consumer;
 
-      console.log(
+      consoleLog(
         "audioConsumers count=" + Object.keys(audioConsumers.current).length
       );
     } else {
@@ -814,7 +817,7 @@ export const Room = ({ socketRef }) => {
     if (!socketRef.current) {
       console.log("socketRef.current", socketRef.current);
       const io = socketIOClient(
-        "http://" + config.SERVER_ENDPOINT + "/video-conference"
+        "https://video-meet.webdevmt.xyz/video-conference"
       );
       socketRef.current = io;
     }
@@ -988,7 +991,7 @@ export const Room = ({ socketRef }) => {
               alignItem: "center",
               height: "100%",
               width: "100%",
-              marginLeft: "15%",
+              marginLeft: "10%",
             }}
           >
             <Box
