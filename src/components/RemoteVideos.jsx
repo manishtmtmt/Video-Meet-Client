@@ -3,26 +3,48 @@ import React from "react";
 
 const CreateRemoteVideos = (props) => {
   console.log("🚀 ~ CreateRemoteVideos ~ props:", props);
-  console.log("tracks: -->", props.peer.stream.getTracks())
+  console.log("tracks: -->", props.peer.stream.getTracks());
   const remoteVideo = React.useRef();
   console.log("🚀 ~ CreateRemoteVideos ~ remoteVideo:", remoteVideo);
 
+  const playVideo = (element, stream) => {
+    console.log("element:", element);
+    console.log("stream:", stream);
+    if (element.srcObject) {
+      console.warn("element ALREADY playing, so ignore");
+      return;
+    }
+
+    element.srcObject = stream;
+    element.volume = 0;
+    return element.play();
+  };
+
   React.useEffect(() => {
-    props
-      .playVideo(remoteVideo.current, props.peer.stream)
-      ?.then(() => {
-        console.log("playVideo called");
-        remoteVideo.current.volume = 1;
-        console.log("remoteVideo.current");
-        console.log(remoteVideo.current);
-      })
-      .catch((err) => {
-        console.error("media ERROR:", err);
-      });
+    remoteVideo.current.load();
+    playVideo(remoteVideo.current, props.peer.stream).then(_ => {
+      remoteVideo.current.volume = 1;
+      console.log("remote video: video playback started :)");
+    }).catch(e => {
+      console.log("remote video: video playback failed ;(", e);
+    })
+
+    // if (playPromise !== undefined) {
+    //   console.log("playPromise: -->", playPromise);
+    //   playPromise
+    //     .then((_) => {
+    //       remoteVideo.current.volume = 1;
+    //       console.log("remote video: video playback started :)");
+    //     })
+    //     .catch((e) => {
+    //       console.log("remote video: video playback failed ;(", e);
+    //     });
+    // }
   }, []);
   return (
     <video
       ref={remoteVideo}
+      controls
       autoPlay
       style={{ width: "100%", height: "100%" }}
     ></video>

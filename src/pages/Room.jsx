@@ -250,11 +250,18 @@ export const Room = ({ socketRef }) => {
       .getUserMedia({ audio: useAudio, video: useVideo })
       .then((stream) => {
         localStream.current = stream;
-        playVideo(localVideo.current, localStream.current);
+        playVideo(localVideo.current, localStream.current)
+          .then((_) => {
+            console.log("local video: Video playback started ;)");
+            localVideo.current.volume = 1;
+          })
+          .catch((e) => {
+            console.log("Video playback failed ;(", e);
+          });
         setIsStartMedia(true);
       })
       .catch((err) => {
-        console.error("media ERROR:", err);
+        console.error("local video: media ERROR:", err);
       });
   };
 
@@ -333,7 +340,7 @@ export const Room = ({ socketRef }) => {
     }
 
     element.srcObject = stream;
-    element.volume = 1;
+    element.volume = 0;
     return element.play();
   }
 
