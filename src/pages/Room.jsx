@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Device } from "mediasoup-client";
 import { io as socketIOClient } from "socket.io-client";
 import { config } from "../app.config";
@@ -21,9 +21,30 @@ import CallEndIcon from "@mui/icons-material/CallEnd";
 import ChatIcon from "@mui/icons-material/Chat";
 import SendIcon from "@mui/icons-material/Send";
 import { RemoteVideos } from "../components/RemoteVideos";
+import { useSelector } from 'react-redux'
 
 const MODE_STREAM = "stream";
 const MODE_SHARE_SCREEN = "share_screen";
+
+const RenderLocalVideo = ({ playVideo, localStream }) => {
+  const localVideo = useRef();
+
+  useEffect(() => {
+    playVideo(localVideo.current, localStream.current);
+  }, [localStream, playVideo]);
+  return (
+    <video
+      style={{
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        borderRadius: "15px",
+      }}
+      autoPlay
+      ref={localVideo}
+    ></video>
+  );
+};
 
 export const Room = ({ socketRef }) => {
   const navigate = useNavigate();
@@ -55,8 +76,13 @@ export const Room = ({ socketRef }) => {
   const [message, setMessage] = useState();
   const [messages, setMessages] = useState([]);
   const [currentPage, setCurrentPage] = useState(0);
-  const itemsPerPage = 3;
+  const itemsPerPage = 4;
   const totalPages = Math.ceil(Object.keys(remoteVideos).length / itemsPerPage);
+
+  const {
+    data: { userType },
+  } = useSelector((state) => state.authReducer);
+  console.log("🚀 ~ Room ~ userType:", userType);
 
   const consoleLog = (data) => {
     // console.log(data)
@@ -131,6 +157,7 @@ export const Room = ({ socketRef }) => {
     const data = await sendRequest("getRouterRtpCapabilities", {
       roomName: roomId,
       peername: location.state.username,
+      peerRoleType: userType,
     });
     console.log("getRouterRtpCapabilities:", data);
     await loadDevice(data);
@@ -250,14 +277,6 @@ export const Room = ({ socketRef }) => {
       .getUserMedia({ audio: useAudio, video: useVideo })
       .then((stream) => {
         localStream.current = stream;
-        playVideo(localVideo.current, localStream.current)
-          .then((_) => {
-            console.log("local video: Video playback started ;)");
-            localVideo.current.volume = 1;
-          })
-          .catch((e) => {
-            console.log("Video playback failed ;(", e);
-          });
         setIsStartMedia(true);
       })
       .catch((err) => {
@@ -361,7 +380,7 @@ export const Room = ({ socketRef }) => {
     tracks.forEach((track) => track.stop());
   }
 
-  function addRemoteTrack(id, track, mode, remotePeerName) {
+  function addRemoteTrack(id, track, mode, remotePeerName, remotePeerRoleType) {
     // let video = findRemoteVideo(id);
     // if (!video) {
     //     video = addRemoteVideo(id);
@@ -391,6 +410,7 @@ export const Room = ({ socketRef }) => {
         stream: newStream,
         socket_id: id,
         peerName: remotePeerName,
+        peerRoleType: remotePeerRoleType,
       };
     } else {
       //add audiotrack
@@ -525,7 +545,13 @@ export const Room = ({ socketRef }) => {
         });
     }
     return new Promise((resolve, reject) => {
-      addRemoteTrack(remoteSocketId, consumer.track, mode, data.remotePeerName);
+      addRemoteTrack(
+        remoteSocketId,
+        consumer.track,
+        mode,
+        data.remotePeerName,
+        data.remotePeerRoleType
+      );
       resolve();
     });
   }
@@ -544,13 +570,25 @@ export const Room = ({ socketRef }) => {
 
     console.log("connected");
 
-    // --- get capabilities --
-    const data = await sendRequest("getRouterRtpCapabilities", {
-      roomName: roomId,
-      peername: location.state.username,
-    });
-    console.log("getRouterRtpCapabilities:", data);
-    await loadDevice(data);
+    try {
+      // --- get capabilities --
+      const data = await sendRequest("getRouterRtpCapabilities", {
+        roomName: roomId,
+        peername: location.state.username,
+        peerRoleType: userType,
+      });
+      console.log("getRouterRtpCapabilities:", data);
+      await loadDevice(data);
+    } catch (error) {
+      console.log(
+        "🚀 ~ handleConnect ~ error:",
+        JSON.parse(error),
+        typeof error
+      );
+      alert(JSON.parse(error).text);
+      navigate(-1);
+      return;
+    }
 
     // --- get transport info ---
     console.log("--- createProducerTransport --");
@@ -643,12 +681,21 @@ export const Room = ({ socketRef }) => {
     }
 
     // --- get capabilities --
-    const data = await sendRequest("getRouterRtpCapabilities", {
-      roomName: roomId,
-      peername: location.state.username,
-    });
-    console.log("getRouterRtpCapabilities:", data);
-    await loadDevice(data);
+    try {
+      const data = await sendRequest("getRouterRtpCapabilities", {
+        roomName: roomId,
+        peername: location.state.username,
+        peerRoleType: userType,
+      });
+
+      console.log("getRouterRtpCapabilities:", data);
+      await loadDevice(data);
+    } catch (error) {
+      console.log("🚀 ~ subscribe ~ error:", error);
+      alert("Some went Wrong!");
+      return;
+    }
+
     //  }
 
     // --- prepare transport ---
@@ -715,6 +762,7 @@ export const Room = ({ socketRef }) => {
           // Success response, so pass the mediasoup response to the local Room.
           resolve(response);
         } else {
+          console.log(`🚀 ~ socketRef.current.emit ~ err: ${err}`);
           reject(err);
         }
       });
@@ -823,9 +871,7 @@ export const Room = ({ socketRef }) => {
     console.log(config.SERVER_ENDPOINT);
     if (!socketRef.current) {
       console.log("socketRef.current", socketRef.current);
-      const io = socketIOClient(
-        "https://video-meet.webdevmt.xyz/video-conference"
-      );
+      const io = socketIOClient("/video-conference");
       socketRef.current = io;
     }
 
@@ -978,7 +1024,7 @@ export const Room = ({ socketRef }) => {
   }, [isStartMedia, messages]);
 
   return (
-    <Box>
+    <Box position={"relative"}>
       <Box height={"90vh"} sx={{ display: "flex" }}>
         <Box
           sx={{
@@ -990,83 +1036,102 @@ export const Room = ({ socketRef }) => {
             height: "100%",
           }}
         >
-          <Box
-            sx={{
-              display: "flex",
-              flexWrap: "wrap",
-              justifyContent: "center",
-              alignItem: "center",
-              height: "100%",
-              width: "100%",
-              marginLeft: "10%",
-            }}
-          >
-            <Box
-              sx={{
-                display: "flex",
-                alignItem: "center",
-                width: "40%",
-              }}
-            >
-              <Box
+          {console.log(
+            "remote videos length",
+            Object.keys(remoteVideos).length
+          )}
+          {Object.keys(remoteVideos).length === 0 ? (
+            <Box width={"80%"} height={"80%"} position={"relative"}>
+              <RenderLocalVideo
+                playVideo={playVideo}
+                localStream={localStream}
+              />
+              <Typography
                 sx={{
-                  position: "relative",
-                  width: "100%",
-                  height: "350px",
-                  alignSelf: "center",
+                  position: "absolute",
+                  bottom: 4,
+                  right: 6,
+                  padding: "5px",
+                  color: "#fff",
+                  backgroundColor: "#0f0f0f",
                 }}
               >
-                <video
-                  ref={localVideo}
-                  autoPlay
-                  style={{ width: "100%", height: "100%" }}
-                ></video>
-                <Typography
+                {location.state?.username} (You)
+              </Typography>
+            </Box>
+          ) : (
+            <Box width={"100%"} height={"90%"}>
+              <Box
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  height: "100%",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <RemoteVideos
+                  remoteVideos={remoteVideos}
+                  playVideo={playVideo}
+                  currentPage={currentPage}
+                  itemsPerPage={itemsPerPage}
+                />
+              </Box>
+              <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                <Box
                   sx={{
+                    width: "400px",
+                    height: "250px",
                     position: "absolute",
-                    bottom: 3,
-                    right: "15%",
-                    padding: "5px",
-                    color: "#fff",
-                    backgroundColor: "#0f0f0f",
+                    left: 5,
+                    bottom: 5,
                   }}
                 >
-                  {location.state?.username} (You)
-                </Typography>
+                  {console.log("localvideo stream: -->", localVideo.current)}
+                  <RenderLocalVideo
+                    playVideo={playVideo}
+                    localStream={localStream}
+                  />
+                  <Typography
+                    sx={{
+                      position: "absolute",
+                      bottom: 3,
+                      padding: "5px",
+                      color: "#fff",
+                      backgroundColor: "#0f0f0f",
+                    }}
+                  >
+                    {location.state?.username} (You)
+                  </Typography>
+                </Box>
+                {totalPages > 1 && (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      gap: 2,
+                      justifyContent: "flex-end",
+                      alignItems: "center",
+                      marginBottom: "7px",
+                      width: "100%",
+                    }}
+                  >
+                    <Button
+                      variant="contained"
+                      onClick={prevPage}
+                      disabled={currentPage === 0}
+                    >
+                      Prev
+                    </Button>
+                    <Button
+                      variant="contained"
+                      onClick={nextPage}
+                      disabled={currentPage === totalPages - 1}
+                    >
+                      Next
+                    </Button>
+                  </Box>
+                )}
               </Box>
-            </Box>
-            <RemoteVideos
-              remoteVideos={remoteVideos}
-              playVideo={playVideo}
-              currentPage={currentPage}
-              itemsPerPage={itemsPerPage}
-            />
-          </Box>
-          {totalPages > 1 && (
-            <Box
-              sx={{
-                display: "flex",
-                gap: 2,
-                justifyContent: "flex-end",
-                alignItems: "center",
-                marginBottom: "7px",
-                width: "100%",
-              }}
-            >
-              <Button
-                variant="contained"
-                onClick={prevPage}
-                disabled={currentPage === 0}
-              >
-                Prev
-              </Button>
-              <Button
-                variant="contained"
-                onClick={nextPage}
-                disabled={currentPage === totalPages - 1}
-              >
-                Next
-              </Button>
             </Box>
           )}
         </Box>

@@ -3,7 +3,6 @@ import React from "react";
 
 const CreateRemoteVideos = (props) => {
   console.log("🚀 ~ CreateRemoteVideos ~ props:", props);
-  console.log("tracks: -->", props.peer.stream.getTracks());
   const remoteVideo = React.useRef();
   console.log("🚀 ~ CreateRemoteVideos ~ remoteVideo:", remoteVideo);
 
@@ -22,12 +21,14 @@ const CreateRemoteVideos = (props) => {
 
   React.useEffect(() => {
     remoteVideo.current.load();
-    playVideo(remoteVideo.current, props.peer.stream).then(_ => {
-      remoteVideo.current.volume = 1;
-      console.log("remote video: video playback started :)");
-    }).catch(e => {
-      console.log("remote video: video playback failed ;(", e);
-    })
+    playVideo(remoteVideo.current, props.peer.stream)
+      .then((_) => {
+        remoteVideo.current.volume = 1;
+        console.log("remote video: video playback started :)");
+      })
+      .catch((e) => {
+        console.log("remote video: video playback failed ;(", e);
+      });
 
     // if (playPromise !== undefined) {
     //   console.log("playPromise: -->", playPromise);
@@ -44,9 +45,13 @@ const CreateRemoteVideos = (props) => {
   return (
     <video
       ref={remoteVideo}
-      controls
       autoPlay
-      style={{ width: "100%", height: "100%" }}
+      style={{
+        width: "100%",
+        height: "100%",
+        objectFit: "fill",
+        borderRadius: "15px",
+      }}
     ></video>
   );
 };
@@ -72,34 +77,27 @@ export const RemoteVideos = ({
             <Box
               key={peer.socket_id + "__" + key2}
               sx={{
-                display: "flex",
-                alignItem: "center",
-                width: "40%",
+                boxSizing: "border-box !important",
+                // flex: "2 0 calc(50% - 20px)",
+                flex: "0.3 0 calc(50% - 20px)",
+                height: currentPageData.length > 2 ? "46%" : "auto",
+                margin: "10px",
+                position: "relative",
               }}
             >
-              <Box
+              <MemoizedCreateRemoteVideos peer={peer} playVideo={playVideo} />
+              <Typography
                 sx={{
-                  position: "relative",
-                  width: "100%",
-                  height: "350px",
-                  alignSelf: "center",
-                  marginLeft: (index + 1) % 2 !== 0 ? "-20%" : 0,
+                  position: "absolute",
+                  bottom: 3,
+                  right: "3%",
+                  padding: "5px",
+                  color: "#fff",
+                  backgroundColor: "#0f0f0f",
                 }}
               >
-                <MemoizedCreateRemoteVideos peer={peer} playVideo={playVideo} />
-                <Typography
-                  sx={{
-                    position: "absolute",
-                    bottom: 3,
-                    right: "15%",
-                    padding: "5px",
-                    color: "#fff",
-                    backgroundColor: "#0f0f0f",
-                  }}
-                >
-                  {peer?.peerName}
-                </Typography>
-              </Box>
+                {peer?.peerName}
+              </Typography>
             </Box>
           );
         });

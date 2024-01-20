@@ -12,7 +12,7 @@ export const postSignUp = createAsyncThunk(
   async (payload) => {
     try {
       const { data } = await axios.post(
-        "https://video-meet.webdevmt.xyz/api/signup",
+        "/api/signup",
         payload
       );
       return data;
@@ -27,7 +27,7 @@ export const postSignUp = createAsyncThunk(
 export const postLogin = createAsyncThunk("/api/postLogin", async (payload) => {
   try {
     const { data } = await axios.post(
-      "https://video-meet.webdevmt.xyz/api/login",
+      "/api/login",
       payload
     );
     return data;
