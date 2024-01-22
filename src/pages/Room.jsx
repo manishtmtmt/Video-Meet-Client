@@ -21,7 +21,7 @@ import CallEndIcon from "@mui/icons-material/CallEnd";
 import ChatIcon from "@mui/icons-material/Chat";
 import SendIcon from "@mui/icons-material/Send";
 import { RemoteVideos } from "../components/RemoteVideos";
-import { useSelector } from 'react-redux'
+import { useSelector } from "react-redux";
 
 const MODE_STREAM = "stream";
 const MODE_SHARE_SCREEN = "share_screen";
@@ -65,6 +65,7 @@ export const Room = ({ socketRef }) => {
   const audioConsumers = useRef({});
   const consumersStream = useRef({});
   const messagesEndRef = useRef(null);
+  const socketPyRef = useRef();
 
   const [useVideo, setUseVideo] = useState(true);
   const [useAudio, setUseAudio] = useState(true);
@@ -80,7 +81,7 @@ export const Room = ({ socketRef }) => {
   const totalPages = Math.ceil(Object.keys(remoteVideos).length / itemsPerPage);
 
   const {
-    data: { userType },
+    data: { userType, userId },
   } = useSelector((state) => state.authReducer);
   console.log("🚀 ~ Room ~ userType:", userType);
 
@@ -155,6 +156,7 @@ export const Room = ({ socketRef }) => {
 
     // --- get capabilities --
     const data = await sendRequest("getRouterRtpCapabilities", {
+      token: userId,
       roomName: roomId,
       peername: location.state.username,
       peerRoleType: userType,
@@ -573,6 +575,7 @@ export const Room = ({ socketRef }) => {
     try {
       // --- get capabilities --
       const data = await sendRequest("getRouterRtpCapabilities", {
+        token: userId,
         roomName: roomId,
         peername: location.state.username,
         peerRoleType: userType,
@@ -683,6 +686,7 @@ export const Room = ({ socketRef }) => {
     // --- get capabilities --
     try {
       const data = await sendRequest("getRouterRtpCapabilities", {
+        token: userId,
         roomName: roomId,
         peername: location.state.username,
         peerRoleType: userType,
@@ -1019,6 +1023,28 @@ export const Room = ({ socketRef }) => {
 
       socketRef.current.on("chat", function (msg) {
         setMessages([...messages, msg]);
+      });
+
+      socketRef.current.on("handshake", (socket) => {
+        console.log("socket: handshake", socket);
+        socketPyRef.current = socketIOClient("https://192.168.0.13:8080", {
+          auth: {
+            token: socket.uuid,
+          },
+        });
+
+        socketPyRef.current.emit("handshake", socket);
+
+        socketPyRef.current.on("echo", (data) => {
+          console.log("socketPyRef echo data:", data);
+        });
+
+        socketPyRef.current.on("handshake_done", () => {
+          socketPyRef.current.emit("message", {
+            message: `Hey id: ${socketPyRef.current.id} just joined`,
+            room: roomId,
+          });
+        });
       });
     }
   }, [isStartMedia, messages]);

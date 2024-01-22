@@ -34,22 +34,22 @@ export const CreateRoom = ({ socketRef }) => {
   const [snackOpen, setSnackOpen] = useState(false);
   const [username, setUsername] = useState(name);
   const [stream, setStream] = useState();
-  const [showVideo, setShowVideo] = useState(false);
-  const [muteAudio, setMuteAudio] = useState(false);
+  const [useVideo, setUseVideo] = useState(false);
+  const [useAudio, setUseAudio] = useState(false);
   const [errors, setErrors] = useState({});
   const [language, setLanguage] = useState("");
 
   const localVideoRef = useRef();
 
   const handleVideoState = () => {
-    console.log(showVideo);
-    stream.getTracks()[1].enabled = showVideo;
-    setShowVideo(!showVideo);
+    console.log(useVideo);
+    stream.getTracks()[1].enabled = useVideo;
+    setUseVideo(!useVideo);
   };
 
   const handleAudioState = () => {
-    stream.getTracks()[0].enabled = muteAudio;
-    setMuteAudio(!muteAudio);
+    stream.getTracks()[0].enabled = useAudio;
+    setUseAudio(!useAudio);
   };
 
   const handleClick = () => {
@@ -134,7 +134,7 @@ export const CreateRoom = ({ socketRef }) => {
           >
             <Grid item>
               <span onClick={handleAudioState} style={{ cursor: "pointer" }}>
-                {muteAudio ? (
+                {useAudio ? (
                   <Box
                     borderRadius={"50%"}
                     sx={{
@@ -171,7 +171,7 @@ export const CreateRoom = ({ socketRef }) => {
             </Grid>
             <Grid item>
               <span style={{ cursor: "pointer" }} onClick={handleVideoState}>
-                {showVideo ? (
+                {useVideo ? (
                   <Box
                     borderRadius={"50%"}
                     sx={{
