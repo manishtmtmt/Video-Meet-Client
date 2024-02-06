@@ -23,6 +23,7 @@ import { useNavigate } from "react-router-dom";
 import { Header } from "../components/Header";
 import validator from "validator";
 import { useSelector } from "react-redux";
+import { getInitials } from "../utils";
 
 export const JoinRoom = ({ socketRef }) => {
   const {
@@ -33,21 +34,27 @@ export const JoinRoom = ({ socketRef }) => {
   const [snackOpen, setSnackOpen] = useState(false);
   const [username, setUsername] = useState(name);
   const [stream, setStream] = useState();
-  const [showVideo, setShowVideo] = useState(false);
-  const [muteAudio, setMuteAudio] = useState(false);
+  const [useVideo, setUseVideo] = useState(true);
+  const [useAudio, setUseAudio] = useState(false);
   const [errors, setErrors] = useState({});
   const [language, setLanguage] = useState("");
 
   const localVideoRef = useRef();
+  const webCamStreamRef = useRef();
+  const audioRef = useRef();
 
   const handleVideoState = () => {
-    stream.getTracks()[1].enabled = showVideo;
-    setShowVideo(!showVideo);
+    if (useVideo && webCamStreamRef.current) {
+      webCamStreamRef.current.getVideoTracks().forEach((track) => track.stop());
+    } else {
+      startWebCam();
+    }
+    setUseVideo((prev) => !prev);
   };
 
   const handleAudioState = () => {
-    stream.getTracks()[0].enabled = muteAudio;
-    setMuteAudio(!muteAudio);
+    audioRef.current.volume = useAudio ? 1 : 0;
+    setUseAudio(!useAudio);
   };
 
   const handleClick = () => {
@@ -90,23 +97,35 @@ export const JoinRoom = ({ socketRef }) => {
       setErrors(newErrors);
     } else {
       setErrors({});
-      navigate(`/room/${roomID}`, { state: { username } });
+      navigate(`/room/${roomID}`, {
+        state: { username, useVideo, language, useAudio },
+      });
     }
   };
 
-  useEffect(() => {
+  const startWebCam = () => {
     navigator.mediaDevices
       .getUserMedia({
         video: true,
         audio: true,
       })
-      .then((currentStream) => {
-        setStream(currentStream);
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = currentStream;
-        }
+      .then((stream) => {
+        webCamStreamRef.current = stream;
+        localVideoRef.current.srcObject = new MediaStream([
+          stream.getVideoTracks()[0],
+        ]);
+        audioRef.current.srcObject = new MediaStream([
+          stream.getAudioTracks()[0],
+        ]);
+      })
+      .catch((error) => {
+        console.log("ERROR in starting WebCam", error);
       });
-  }, [setStream]);
+  };
+
+  useEffect(() => {
+    startWebCam();
+  }, []);
 
   useEffect(() => {
     if (socketRef.current) {
@@ -119,14 +138,51 @@ export const JoinRoom = ({ socketRef }) => {
     <Box>
       <Header />
       <Grid container mt={5} gap={3} justifyContent={"center"}>
-        <Grid item position={"relative"} xs={4}>
-          <video
-            playsInline
-            ref={localVideoRef}
-            autoPlay
-            width={"100%"}
-            height={"100%"}
-          ></video>
+        <Grid item position={"relative"} xs={4} height={"450px"}>
+          {useVideo ? (
+            <Box sx={{ height: "100%" }}>
+              <video
+                playsInline
+                ref={localVideoRef}
+                autoPlay
+                width={"100%"}
+                height={"100%"}
+                style={{ objectFit: "cover", borderRadius: "20px" }}
+                muted
+              ></video>
+            </Box>
+          ) : (
+            <Box
+              width={"100%"}
+              height={"100%"}
+              sx={{
+                background: "#000",
+                objectFit: "fill",
+                borderRadius: "20px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Typography
+                color={"#fff"}
+                variant="h3"
+                fontWeight={"bold"}
+                width={"150px"}
+                height={"150px"}
+                sx={{
+                  borderRadius: "50%",
+                  background: "gray",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                {username ? getInitials(username) : "You"}
+              </Typography>
+            </Box>
+          )}
+          <audio ref={audioRef} autoPlay muted></audio>
           <Grid
             container
             position={"absolute"}
@@ -136,7 +192,7 @@ export const JoinRoom = ({ socketRef }) => {
           >
             <Grid item>
               <span onClick={handleAudioState} style={{ cursor: "pointer" }}>
-                {muteAudio ? (
+                {useAudio ? (
                   <Box
                     borderRadius={"50%"}
                     sx={{
@@ -173,23 +229,7 @@ export const JoinRoom = ({ socketRef }) => {
             </Grid>
             <Grid item>
               <span style={{ cursor: "pointer" }} onClick={handleVideoState}>
-                {showVideo ? (
-                  <Box
-                    borderRadius={"50%"}
-                    sx={{
-                      color: "white",
-                      width: "50px",
-                      height: "50px",
-                      background: "red",
-                      fontSize: "32px",
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                  >
-                    <VideocamOffIcon />
-                  </Box>
-                ) : (
+                {useVideo ? (
                   <Box
                     borderRadius={"50%"}
                     sx={{
@@ -204,6 +244,22 @@ export const JoinRoom = ({ socketRef }) => {
                     }}
                   >
                     <VideocamIcon />
+                  </Box>
+                ) : (
+                  <Box
+                    borderRadius={"50%"}
+                    sx={{
+                      color: "white",
+                      width: "50px",
+                      height: "50px",
+                      background: "red",
+                      fontSize: "32px",
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <VideocamOffIcon />
                   </Box>
                 )}
               </span>
@@ -265,13 +321,15 @@ export const JoinRoom = ({ socketRef }) => {
               >
                 <MenuItem value={"en"}>English</MenuItem>
                 <MenuItem value={"si"}>Sinhala</MenuItem>
-                <MenuItem value={"fra"}>French</MenuItem>
-                <MenuItem value={"aka"}>Akan</MenuItem>
-                <MenuItem value={"ben"}>Bengali</MenuItem>
-                <MenuItem value={"kaz"}>Kazakh</MenuItem>
-                <MenuItem value={"mya"}>Burmese</MenuItem>
-                <MenuItem value={"swh"}>Swahili</MenuItem>
-                <MenuItem value={"rus"}>Russian</MenuItem>
+                {/* <MenuItem value={"fra"}>French</MenuItem> */}
+                {/* <MenuItem value={"aka"}>Akan</MenuItem> */}
+                {/* <MenuItem value={"ben"}>Bengali</MenuItem> */}
+                {/* <MenuItem value={"kaz"}>Kazakh</MenuItem> */}
+                {/* <MenuItem value={"mya"}>Burmese</MenuItem> */}
+                {/* <MenuItem value={"swh"}>Swahili</MenuItem> */}
+                <MenuItem value={"ru"}>Russian</MenuItem>
+                <MenuItem value={"te"}>Telugu</MenuItem>
+                <MenuItem value={"vi"}>Vietnam</MenuItem>
               </Select>
             </FormControl>
             {errors.language && (

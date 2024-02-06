@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Device } from "mediasoup-client";
 import { io as socketIOClient } from "socket.io-client";
-import { config } from "../app.config";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Avatar,
@@ -17,36 +16,83 @@ import MicIcon from "@mui/icons-material/Mic";
 import MicOffIcon from "@mui/icons-material/MicOff";
 import VideocamIcon from "@mui/icons-material/Videocam";
 import VideocamOffIcon from "@mui/icons-material/VideocamOff";
+import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked";
+import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
+import TranslateIcon from "@mui/icons-material/Translate";
 import CallEndIcon from "@mui/icons-material/CallEnd";
 import ChatIcon from "@mui/icons-material/Chat";
 import SendIcon from "@mui/icons-material/Send";
+import ClosedCaptionIcon from "@mui/icons-material/ClosedCaption";
+import ClosedCaptionDisabledIcon from "@mui/icons-material/ClosedCaptionDisabled";
 import { RemoteVideos } from "../components/RemoteVideos";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import AudioReactRecorder, { RecordState } from "audio-react-recorder";
+import axios from "axios";
+import { logout } from "../redux/slice/authSlice";
+import moment from "moment";
 
 const MODE_STREAM = "stream";
 const MODE_SHARE_SCREEN = "share_screen";
+const uploadAPIURL = "http://localhost:5000/save-record";
+let interval = null;
 
-const RenderLocalVideo = ({ playVideo, localStream }) => {
+const RenderLocalVideo = ({ playVideo, localStream, peerName }) => {
   const localVideo = useRef();
+  const videoTrack = localStream.current?.getVideoTracks()[0];
+
+  const videoEnabled = videoTrack?.enabled;
 
   useEffect(() => {
     playVideo(localVideo.current, localStream.current);
   }, [localStream, playVideo]);
   return (
-    <video
-      style={{
-        width: "100%",
-        height: "100%",
-        objectFit: "cover",
-        borderRadius: "15px",
-      }}
-      autoPlay
-      ref={localVideo}
-    ></video>
+    <>
+      <video
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          borderRadius: "15px",
+        }}
+        autoPlay
+        ref={localVideo}
+      ></video>
+      {!videoEnabled ? (
+        <Box
+          width={"100%"}
+          height={"100%"}
+          sx={{
+            background: "#000",
+            objectFit: "fill",
+            borderRadius: "20px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          position={"absolute"}
+          top={0}
+        >
+          <Typography
+            color={"#fff"}
+            variant="h3"
+            fontWeight={"bold"}
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            {peerName}
+          </Typography>
+        </Box>
+      ) : null}
+    </>
   );
 };
 
 export const Room = ({ socketRef }) => {
+  const dispatch = useDispatch();
+
   const navigate = useNavigate();
   const { roomId } = useParams();
   const location = useLocation();
@@ -66,19 +112,34 @@ export const Room = ({ socketRef }) => {
   const consumersStream = useRef({});
   const messagesEndRef = useRef(null);
   const socketPyRef = useRef();
+  const chatInputRef = useRef();
 
+  const [pySocketId, setPySocketId] = useState("");
   const [useVideo, setUseVideo] = useState(true);
   const [useAudio, setUseAudio] = useState(true);
   const [isStartMedia, setIsStartMedia] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [remoteVideos, setRemoteVideos] = useState({});
+  const [recAudio, setRecAudio] = useState(false);
+  const [recordState, setRecordState] = useState(null);
   const [isShareScreen, setIsShareScreen] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [message, setMessage] = useState();
   const [messages, setMessages] = useState([]);
   const [currentPage, setCurrentPage] = useState(0);
+  const [viewCaption, setViewCaption] = useState(false);
+  const [caption, setCaption] = useState("");
+
   const itemsPerPage = 4;
   const totalPages = Math.ceil(Object.keys(remoteVideos).length / itemsPerPage);
+
+  const viewCaptionRef = useRef(viewCaption);
+  const messagesRef = useRef(messages);
+
+  useEffect(() => {
+    viewCaptionRef.current = viewCaption;
+    messagesRef.current = messages;
+  }, [messages, viewCaption]);
 
   const {
     data: { userType, userId },
@@ -87,6 +148,129 @@ export const Room = ({ socketRef }) => {
 
   const consoleLog = (data) => {
     // console.log(data)
+  };
+
+  // useEffect(() => {
+  //   const script = document.createElement("script");
+  //   script.src =
+  //     "https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.3/socket.io.js";
+  //   script.async = true;
+
+  //   script.onload = () => {
+  //     // The script has been loaded, and you can now use Socket.IO in your component
+  //     // eslint-disable-next-line no-undef
+  //     socketPyRef.current = io("http://localhost:5000");
+
+  //     socketPyRef.current.on("connect", (data) => {
+  //       console.log("socketPY data: ", data);
+  //       setPySocketId(data?.sid);
+  //     });
+
+  //     socketPyRef.current.on("translate_ack", (data) => {
+  //       console.log("Got audio ack");
+  //       socketPyRef.current.emit("request_audio");
+  //     });
+
+  //     socketPyRef.current.on("play_audio", (data) => {
+  //       console.log(data);
+  //       const audioData = data.audio_data;
+  //       const translatedText = data.translated_text;
+  //       const name = data.name;
+  //       console.log("🚀 ~ file: Room.jsx:138 ~ Room ~ useAudio:", useAudio);
+  //       playBackgroundAudio(
+  //         audioData,
+  //         translatedText,
+  //         name,
+  //         viewCaptionRef.current
+  //       );
+  //     });
+
+  //     socketPyRef.current.on("show_translated_msg", (data) => {
+  //       const newChats = Array.from(messagesRef.current);
+  //       console.log(
+  //         "🚀 ~ file: Room.jsx:160 ~ socketPyRef.current.on ~ newChats:",
+  //         newChats
+  //       );
+  //       if (newChats[data.iconid]) {
+  //         newChats[data.iconid].message = data.translated_chat;
+  //         setMessages(newChats);
+  //       }
+  //     });
+
+  //     socketPyRef.current.on("handshake_done", () => {
+  //       socketPyRef.current.emit("message", {
+  //         message: `Hey id: ${socketPyRef.current.id} just joined`,
+  //         room: roomId,
+  //       });
+  //     });
+  //   };
+
+  //   document.body.appendChild(script);
+
+  //   // Clean up the script when the component is unmounted
+  //   return () => {
+  //     document.body.removeChild(script);
+  //   };
+  // }, []); // Empty dependency array to run the effect only once when the component mounts
+
+  useEffect(() => {
+    interval = setInterval(() => {
+      if (recAudio) {
+        setRecordState(RecordState.STOP);
+        setTimeout(() => {
+          setRecordState(RecordState.START);
+        }, 5);
+      } else {
+        clearInterval(interval);
+      }
+    }, 2000);
+    return () => {
+      clearInterval(interval);
+    };
+  }, [recAudio]);
+
+  // Make Changes over here for captions and to listen audio
+  const playBackgroundAudio = (
+    audioData,
+    translatedtext,
+    name,
+    viewCaption
+  ) => {
+    let audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+    audioContext.decodeAudioData(audioData, function (buffer) {
+      const source = audioContext.createBufferSource();
+      source.buffer = buffer;
+      console.log("inside decode audio");
+      source.connect(audioContext.destination);
+      if (viewCaption) {
+        setCaption({ name, translatedText: translatedtext });
+        source.start(0);
+      } else {
+        source.start(0);
+      }
+    });
+  };
+
+  const onStop = async (audioData) => {
+    console.log("Here");
+    var file = new File([audioData.blob], "data.wav");
+    // Create FormData object to send the file
+    const formData = new FormData();
+    formData.append("file", file);
+
+    // Make Axios POST request to the Flask endpoint
+    await axios
+      .post(uploadAPIURL, formData)
+      .then((response) => {
+        // Handle the response from the server
+        console.log("Server response:", response.data);
+        socketPyRef.current.emit("translate", response.data);
+      })
+      .catch((error) => {
+        // Handle errors
+        console.error("Error:", error);
+      });
   };
 
   const nextPage = () => {
@@ -102,6 +286,11 @@ export const Room = ({ socketRef }) => {
   };
 
   // ============ UI button ==========
+
+  const translateMessage = (message, id) => {
+    console.log("translateMessage: ", message);
+    socketPyRef.current.emit("request_translated_msg", { msg: message, id });
+  };
 
   const handleStartScreenShare = () => {
     if (localStreamScreen.current) {
@@ -138,13 +327,19 @@ export const Room = ({ socketRef }) => {
     setUseAudio(true);
   };
 
-  const handleHideVideo = () => {
-    localStream.current.getTracks()[1].enabled = false;
+  const handleHideVideo = async () => {
+    localStream.current.getVideoTracks()[0].enabled = false;
+    await sendRequest("webCamStatus", { videoEnabled: false }).catch((err) => {
+      console.log("Error ->", err);
+    });
     setUseVideo(false);
   };
 
-  const handleShowVideo = () => {
-    localStream.current.getTracks()[1].enabled = true;
+  const handleShowVideo = async () => {
+    localStream.current.getVideoTracks()[0].enabled = true;
+    await sendRequest("webCamStatus", { videoEnabled: true }).catch((err) => {
+      console.log("Error ->", err);
+    });
     setUseVideo(true);
   };
 
@@ -253,6 +448,7 @@ export const Room = ({ socketRef }) => {
       setIsShareScreen(false);
     }
   }
+
   async function handleDisconnectScreenShare() {
     handleStopScreenShare();
     {
@@ -413,6 +609,7 @@ export const Room = ({ socketRef }) => {
         socket_id: id,
         peerName: remotePeerName,
         peerRoleType: remotePeerRoleType,
+        videoEnabled: useVideo,
       };
     } else {
       //add audiotrack
@@ -507,7 +704,6 @@ export const Room = ({ socketRef }) => {
     });
     //const stream = new MediaStream();
     //stream.addTrack(consumer.track);
-
     addConsumer(remoteSocketId, consumer, kind, mode);
     consumer.remoteId = remoteSocketId;
     consumer.on("transportclose", () => {
@@ -558,7 +754,8 @@ export const Room = ({ socketRef }) => {
     });
   }
 
-  async function handleConnect() {
+  const handleConnect = async () => {
+    console.log("handle connect function called");
     if (!localStream.current) {
       console.warn("WARN: local media NOT READY");
       return;
@@ -570,15 +767,22 @@ export const Room = ({ socketRef }) => {
       return;
     });
 
-    console.log("connected");
+    console.log("socket connected");
 
     try {
+      console.log({
+        token: userId,
+        roomName: roomId,
+        peername: location.state.username,
+        peerRoleType: userType,
+      });
       // --- get capabilities --
       const data = await sendRequest("getRouterRtpCapabilities", {
         token: userId,
         roomName: roomId,
         peername: location.state.username,
         peerRoleType: userType,
+        peerLanguage: location.state.language,
       });
       console.log("getRouterRtpCapabilities:", data);
       await loadDevice(data);
@@ -589,7 +793,7 @@ export const Room = ({ socketRef }) => {
         typeof error
       );
       alert(JSON.parse(error).text);
-      navigate(-1);
+      dispatch(logout());
       return;
     }
 
@@ -664,6 +868,7 @@ export const Room = ({ socketRef }) => {
           await producerTransport.current.produce(trackParams);
       }
     }
+
     if (useAudio) {
       const audioTrack = localStream.current.getAudioTracks()[0];
       if (audioTrack) {
@@ -672,7 +877,7 @@ export const Room = ({ socketRef }) => {
           await producerTransport.current.produce(trackParams);
       }
     }
-  }
+  };
 
   async function subscribe() {
     // consoleLog(socketRef.current);
@@ -690,13 +895,14 @@ export const Room = ({ socketRef }) => {
         roomName: roomId,
         peername: location.state.username,
         peerRoleType: userType,
+        peerLanguage: location.state.language,
       });
 
       console.log("getRouterRtpCapabilities:", data);
       await loadDevice(data);
     } catch (error) {
       console.log("🚀 ~ subscribe ~ error:", error);
-      alert("Some went Wrong!");
+      alert("Something went Wrong!");
       return;
     }
 
@@ -872,10 +1078,9 @@ export const Room = ({ socketRef }) => {
   }
 
   const connectSocket = () => {
-    console.log(config.SERVER_ENDPOINT);
     if (!socketRef.current) {
       console.log("socketRef.current", socketRef.current);
-      const io = socketIOClient("/video-conference");
+      const io = socketIOClient("http://localhost:8000/video-conference");
       socketRef.current = io;
     }
 
@@ -965,8 +1170,9 @@ export const Room = ({ socketRef }) => {
       return;
     }
 
-    console.log("MESSAGE =>", message);
-    await sendRequest("message", { message }).catch((err) => {
+    const time = new Date().toUTCString();
+
+    await sendRequest("message", { message, time }).catch((err) => {
       console.log("Error ->", err);
     });
     setMessage("");
@@ -1027,27 +1233,31 @@ export const Room = ({ socketRef }) => {
 
       socketRef.current.on("handshake", (socket) => {
         console.log("socket: handshake", socket);
-        socketPyRef.current = socketIOClient("https://192.168.0.13:8080", {
-          auth: {
-            token: socket.uuid,
-          },
-        });
 
-        socketPyRef.current.emit("handshake", socket);
+        // socketPyRef.current.emit("handshake", socket);
 
-        socketPyRef.current.on("echo", (data) => {
-          console.log("socketPyRef echo data:", data);
-        });
+        // socketPyRef.current.on("echo", (data) => {
+        //   console.log("socketRef echo data:", data);
+        // });
+      });
 
-        socketPyRef.current.on("handshake_done", () => {
-          socketPyRef.current.emit("message", {
-            message: `Hey id: ${socketPyRef.current.id} just joined`,
-            room: roomId,
+      socketRef.current.on("webCamStatus", (data) => {
+        if (remoteVideos.hasOwnProperty(data.remoteSocketId)) {
+          setRemoteVideos({
+            ...remoteVideos,
+            [data.remoteSocketId]: {
+              ...remoteVideos[data.remoteSocketId],
+              stream: {
+                ...remoteVideos[data.remoteSocketId].stream,
+                videoEnabled: data.videoEnabled,
+              },
+            },
           });
-        });
+          console.log(remoteVideos, "remoteVideos");
+        }
       });
     }
-  }, [isStartMedia, messages]);
+  }, [isStartMedia, messages, remoteVideos]);
 
   return (
     <Box position={"relative"}>
@@ -1060,6 +1270,7 @@ export const Room = ({ socketRef }) => {
             alignItems: "center",
             width: "90%",
             height: "100%",
+            position: "relative",
           }}
         >
           {console.log(
@@ -1071,19 +1282,22 @@ export const Room = ({ socketRef }) => {
               <RenderLocalVideo
                 playVideo={playVideo}
                 localStream={localStream}
+                peerName={location.state?.username}
               />
-              <Typography
-                sx={{
-                  position: "absolute",
-                  bottom: 4,
-                  right: 6,
-                  padding: "5px",
-                  color: "#fff",
-                  backgroundColor: "#0f0f0f",
-                }}
-              >
-                {location.state?.username} (You)
-              </Typography>
+              {useVideo ? (
+                <Typography
+                  sx={{
+                    position: "absolute",
+                    bottom: 4,
+                    right: 6,
+                    padding: "5px",
+                    color: "#fff",
+                    backgroundColor: "#0f0f0f",
+                  }}
+                >
+                  {location.state?.username} (You)
+                </Typography>
+              ) : null}
             </Box>
           ) : (
             <Box width={"100%"} height={"90%"}>
@@ -1117,18 +1331,21 @@ export const Room = ({ socketRef }) => {
                   <RenderLocalVideo
                     playVideo={playVideo}
                     localStream={localStream}
+                    peerName={location.state.username}
                   />
-                  <Typography
-                    sx={{
-                      position: "absolute",
-                      bottom: 3,
-                      padding: "5px",
-                      color: "#fff",
-                      backgroundColor: "#0f0f0f",
-                    }}
-                  >
-                    {location.state?.username} (You)
-                  </Typography>
+                  {useVideo ? (
+                    <Typography
+                      sx={{
+                        position: "absolute",
+                        bottom: 3,
+                        padding: "5px",
+                        color: "#fff",
+                        backgroundColor: "#0f0f0f",
+                      }}
+                    >
+                      {location.state?.username} (You)
+                    </Typography>
+                  ) : null}
                 </Box>
                 {totalPages > 1 && (
                   <Box
@@ -1160,6 +1377,30 @@ export const Room = ({ socketRef }) => {
               </Box>
             </Box>
           )}
+          {console.log(
+            "1329: viewCaption",
+            viewCaption,
+            "translatedText:",
+            caption?.translatedText
+          )}
+          {viewCaption && caption?.translatedText ? (
+            <Box sx={{ position: "absolute", bottom: 0, width: "100%" }}>
+              <Typography
+                sx={{
+                  width: "fit-content",
+                  margin: "auto",
+                  background: "#000",
+                  textAlign: "center",
+                  color: "#fff",
+                  padding: "10px",
+                  marginBottom: "10px",
+                }}
+              >
+                <span style={{ fontWeight: "bold" }}>{caption?.name}: </span>
+                {caption.translatedText}
+              </Typography>
+            </Box>
+          ) : null}
         </Box>
         {showChat && (
           <Box
@@ -1186,6 +1427,21 @@ export const Room = ({ socketRef }) => {
                           {message.peername}:
                         </span>{" "}
                         {message.message}
+                        <span style={{ marginLeft: "5px", fontSize: "14px" }}>
+                          {moment(message.time).format("LT")}
+                        </span>
+                        <span
+                          style={{
+                            cursor: "pointer",
+                            color: "blue",
+                            marginLeft: "5px",
+                          }}
+                          onClick={() => {
+                            translateMessage(message.message, idx);
+                          }}
+                        >
+                          <TranslateIcon />
+                        </span>
                       </Typography>
                     </Box>
                   ))
@@ -1213,6 +1469,8 @@ export const Room = ({ socketRef }) => {
                 <InputBase
                   sx={{ ml: 1, flex: 1 }}
                   value={message}
+                  ref={chatInputRef}
+                  autoFocus
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="Type something here..."
                   inputProps={{ "aria-label": "chat message prompt" }}
@@ -1314,6 +1572,86 @@ export const Room = ({ socketRef }) => {
               <VideocamOffIcon sx={{ fontSize: "36px" }} />
             </Grid>
           )}
+
+          {recAudio ? (
+            <Grid
+              item
+              backgroundColor={"blue"}
+              sx={{
+                borderRadius: "50%",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                cursor: "pointer",
+                width: "70px",
+                height: "70px",
+                color: "#fff",
+                background: "red",
+              }}
+            >
+              <span
+                style={{ cursor: "pointer" }}
+                onClick={() => {
+                  setRecAudio(false);
+                  setRecordState(RecordState.STOP);
+                }}
+              >
+                <Box
+                  borderRadius={"50%"}
+                  sx={{
+                    color: "white",
+                    width: "50px",
+                    height: "50px",
+                    fontSize: "32px",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <RadioButtonCheckedIcon />
+                </Box>
+              </span>
+            </Grid>
+          ) : (
+            <Grid
+              item
+              backgroundColor={"blue"}
+              sx={{
+                borderRadius: "50%",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                cursor: "pointer",
+                width: "70px",
+                height: "70px",
+                color: "#fff",
+              }}
+            >
+              <span
+                style={{ cursor: "pointer" }}
+                onClick={() => {
+                  setRecAudio(true);
+                  setRecordState(RecordState.START);
+                }}
+              >
+                <Box
+                  borderRadius={"50%"}
+                  sx={{
+                    color: "white",
+                    width: "50px",
+                    height: "50px",
+                    background: "blue",
+                    fontSize: "32px",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <RadioButtonUncheckedIcon />
+                </Box>
+              </span>
+            </Grid>
+          )}
           <Grid
             item
             backgroundColor={"blue"}
@@ -1331,6 +1669,43 @@ export const Room = ({ socketRef }) => {
           >
             <ChatIcon sx={{ fontSize: "36px" }} />
           </Grid>
+          {viewCaption ? (
+            <Grid
+              item
+              backgroundColor={"blue"}
+              sx={{
+                borderRadius: "50%",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                cursor: "pointer",
+                width: "70px",
+                height: "70px",
+                color: "#fff",
+              }}
+              onClick={() => setViewCaption(!viewCaption)}
+            >
+              <ClosedCaptionIcon sx={{ fontSize: "36px" }} />
+            </Grid>
+          ) : (
+            <Grid
+              item
+              backgroundColor={"red"}
+              sx={{
+                borderRadius: "50%",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                cursor: "pointer",
+                width: "70px",
+                height: "70px",
+                color: "#fff",
+              }}
+              onClick={() => setViewCaption(!viewCaption)}
+            >
+              <ClosedCaptionDisabledIcon sx={{ fontSize: "36px" }} />
+            </Grid>
+          )}
           <Grid
             item
             backgroundColor={"red"}
@@ -1351,6 +1726,12 @@ export const Room = ({ socketRef }) => {
           >
             <CallEndIcon sx={{ fontSize: "36px" }} />
           </Grid>
+          <AudioReactRecorder
+            state={recordState}
+            onStop={onStop}
+            canvasWidth={0}
+            canvasHeight={0}
+          />
         </Grid>
       </Box>
     </Box>

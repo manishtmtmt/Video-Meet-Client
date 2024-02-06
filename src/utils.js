@@ -1,6 +1,6 @@
 export const generateUniqueID = (length) => {
   const characters =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   const charactersLength = characters.length;
   let result = "";
 
@@ -9,4 +9,13 @@ export const generateUniqueID = (length) => {
   }
 
   return result;
+};
+
+export const getInitials = (str) => {
+  const words = str.trim().split(" ");
+
+  const initials =
+    words.length > 1 ? words[0][0] + words[words.length - 1][0] : words[0][0];
+
+  return initials;
 };

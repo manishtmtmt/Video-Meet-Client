@@ -12,7 +12,7 @@ export const postSignUp = createAsyncThunk(
   async (payload) => {
     try {
       const { data } = await axios.post(
-        "/api/signup",
+        "http://localhost:8000/api/signup",
         payload
       );
       return data;
@@ -27,7 +27,7 @@ export const postSignUp = createAsyncThunk(
 export const postLogin = createAsyncThunk("/api/postLogin", async (payload) => {
   try {
     const { data } = await axios.post(
-      "/api/login",
+      "http://localhost:8000/api/login",
       payload
     );
     return data;
