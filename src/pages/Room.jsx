@@ -150,68 +150,68 @@ export const Room = ({ socketRef }) => {
     // console.log(data)
   };
 
-  // useEffect(() => {
-  //   const script = document.createElement("script");
-  //   script.src =
-  //     "https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.3/socket.io.js";
-  //   script.async = true;
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src =
+      "https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.3/socket.io.js";
+    script.async = true;
 
-  //   script.onload = () => {
-  //     // The script has been loaded, and you can now use Socket.IO in your component
-  //     // eslint-disable-next-line no-undef
-  //     socketPyRef.current = io("http://localhost:5000");
+    script.onload = () => {
+      // The script has been loaded, and you can now use Socket.IO in your component
+      // eslint-disable-next-line no-undef
+      socketPyRef.current = io("http://localhost:5000");
 
-  //     socketPyRef.current.on("connect", (data) => {
-  //       console.log("socketPY data: ", data);
-  //       setPySocketId(data?.sid);
-  //     });
+      socketPyRef.current.on("connect", (data) => {
+        console.log("socketPY data: ", data);
+        setPySocketId(data?.sid);
+      });
 
-  //     socketPyRef.current.on("translate_ack", (data) => {
-  //       console.log("Got audio ack");
-  //       socketPyRef.current.emit("request_audio");
-  //     });
+      socketPyRef.current.on("translate_ack", (data) => {
+        console.log("Got audio ack");
+        socketPyRef.current.emit("request_audio");
+      });
 
-  //     socketPyRef.current.on("play_audio", (data) => {
-  //       console.log(data);
-  //       const audioData = data.audio_data;
-  //       const translatedText = data.translated_text;
-  //       const name = data.name;
-  //       console.log("🚀 ~ file: Room.jsx:138 ~ Room ~ useAudio:", useAudio);
-  //       playBackgroundAudio(
-  //         audioData,
-  //         translatedText,
-  //         name,
-  //         viewCaptionRef.current
-  //       );
-  //     });
+      socketPyRef.current.on("play_audio", (data) => {
+        console.log(data);
+        const audioData = data.audio_data;
+        const translatedText = data.translated_text;
+        const name = data.name;
+        console.log("🚀 ~ file: Room.jsx:138 ~ Room ~ useAudio:", useAudio);
+        playBackgroundAudio(
+          audioData,
+          translatedText,
+          name,
+          viewCaptionRef.current
+        );
+      });
 
-  //     socketPyRef.current.on("show_translated_msg", (data) => {
-  //       const newChats = Array.from(messagesRef.current);
-  //       console.log(
-  //         "🚀 ~ file: Room.jsx:160 ~ socketPyRef.current.on ~ newChats:",
-  //         newChats
-  //       );
-  //       if (newChats[data.iconid]) {
-  //         newChats[data.iconid].message = data.translated_chat;
-  //         setMessages(newChats);
-  //       }
-  //     });
+      socketPyRef.current.on("show_translated_msg", (data) => {
+        const newChats = Array.from(messagesRef.current);
+        console.log(
+          "🚀 ~ file: Room.jsx:160 ~ socketPyRef.current.on ~ newChats:",
+          newChats
+        );
+        if (newChats[data.iconid]) {
+          newChats[data.iconid].message = data.translated_chat;
+          setMessages(newChats);
+        }
+      });
 
-  //     socketPyRef.current.on("handshake_done", () => {
-  //       socketPyRef.current.emit("message", {
-  //         message: `Hey id: ${socketPyRef.current.id} just joined`,
-  //         room: roomId,
-  //       });
-  //     });
-  //   };
+      socketPyRef.current.on("handshake_done", () => {
+        socketPyRef.current.emit("message", {
+          message: `Hey id: ${socketPyRef.current.id} just joined`,
+          room: roomId,
+        });
+      });
+    };
 
-  //   document.body.appendChild(script);
+    document.body.appendChild(script);
 
-  //   // Clean up the script when the component is unmounted
-  //   return () => {
-  //     document.body.removeChild(script);
-  //   };
-  // }, []); // Empty dependency array to run the effect only once when the component mounts
+    // Clean up the script when the component is unmounted
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []); // Empty dependency array to run the effect only once when the component mounts
 
   useEffect(() => {
     interval = setInterval(() => {
@@ -253,7 +253,6 @@ export const Room = ({ socketRef }) => {
   };
 
   const onStop = async (audioData) => {
-    console.log("Here");
     var file = new File([audioData.blob], "data.wav");
     // Create FormData object to send the file
     const formData = new FormData();
@@ -1234,11 +1233,11 @@ export const Room = ({ socketRef }) => {
       socketRef.current.on("handshake", (socket) => {
         console.log("socket: handshake", socket);
 
-        // socketPyRef.current.emit("handshake", socket);
+        socketPyRef.current.emit("handshake", socket);
 
-        // socketPyRef.current.on("echo", (data) => {
-        //   console.log("socketRef echo data:", data);
-        // });
+        socketPyRef.current.on("echo", (data) => {
+          console.log("socketRef echo data:", data);
+        });
       });
 
       socketRef.current.on("webCamStatus", (data) => {
